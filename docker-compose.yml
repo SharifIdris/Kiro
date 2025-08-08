@@ -1,0 +1,129 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: ideaforge-postgres
+    environment:
+      POSTGRES_DB: ideaforge
+      POSTGRES_USER: ideaforge
+      POSTGRES_PASSWORD: ideaforge_dev_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d
+    networks:
+      - ideaforge-network
+
+  # Redis for caching and sessions
+  redis:
+    image: redis:7-alpine
+    container_name: ideaforge-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - ideaforge-network
+
+  # API Gateway Service
+  api-gateway:
+    build:
+      context: .
+      dockerfile: services/api-gateway/Dockerfile
+    container_name: ideaforge-api-gateway
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://ideaforge:ideaforge_dev_password@postgres:5432/ideaforge
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=your-super-secret-jwt-key-for-development
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - ./services/api-gateway:/app
+      - /app/node_modules
+    networks:
+      - ideaforge-network
+    command: npm run dev
+
+  # AI Service (Python FastAPI)
+  ai-service:
+    build:
+      context: .
+      dockerfile: services/ai-service/Dockerfile
+    container_name: ideaforge-ai-service
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=development
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - CLAUDE_API_KEY=${CLAUDE_API_KEY}
+      - DATABASE_URL=postgresql://ideaforge:ideaforge_dev_password@postgres:5432/ideaforge
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - ./services/ai-service:/app
+    networks:
+      - ideaforge-network
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+  # Frontend Development Server
+  frontend:
+    build:
+      context: .
+      dockerfile: packages/frontend/Dockerfile.dev
+    container_name: ideaforge-frontend
+    ports:
+      - "3001:3000"
+    environment:
+      - REACT_APP_API_URL=http://localhost:3000
+      - REACT_APP_WS_URL=ws://localhost:3000
+    volumes:
+      - ./packages/frontend:/app
+      - /app/node_modules
+    networks:
+      - ideaforge-network
+    command: npm start
+
+  # MinIO for file storage (S3 compatible)
+  minio:
+    image: minio/minio:latest
+    container_name: ideaforge-minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: ideaforge
+      MINIO_ROOT_PASSWORD: ideaforge_minio_password
+    volumes:
+      - minio_data:/data
+    networks:
+      - ideaforge-network
+    command: server /data --console-address ":9001"
+
+  # Mailhog for email testing
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: ideaforge-mailhog
+    ports:
+      - "1025:1025"  # SMTP server
+      - "8025:8025"  # Web UI
+    networks:
+      - ideaforge-network
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:
+
+networks:
+  ideaforge-network:
+    driver: bridge
