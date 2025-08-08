@@ -71,30 +71,37 @@ git clone https://github.com/SharifIdris/Kiro.git
 cd Kiro
 ```
 
-2. **Set up environment:**
+2. **Automated setup (recommended):**
 ```bash
-cp .env.example .env
-# Edit .env with your configuration
+# On Linux/Mac
+chmod +x scripts/setup.sh
+./scripts/setup.sh
+
+# On Windows
+scripts\setup.bat
 ```
 
-3. **Install dependencies:**
+3. **Manual setup:**
 ```bash
+# Install dependencies
 npm install
-```
 
-4. **Start services:**
-```bash
-# Start database and supporting services
-npm run docker:up
+# Copy environment file
+cp .env.example .env
+
+# Start Docker services (PostgreSQL, Redis, etc.)
+npm run docker:services
 
 # Start development servers
 npm run dev
 ```
 
-5. **Access the application:**
+4. **Access the application:**
 - Frontend: http://localhost:3001
 - API Gateway: http://localhost:3000
 - Health Check: http://localhost:3000/health
+- MinIO Console: http://localhost:9001 (ideaforge/ideaforge_minio_password)
+- MailHog: http://localhost:8025
 
 ### Available Scripts
 
@@ -102,8 +109,10 @@ npm run dev
 - `npm run build` - Build all packages and services
 - `npm run test` - Run test suites
 - `npm run lint` - Lint and format code
-- `npm run docker:up` - Start Docker services (PostgreSQL, Redis, etc.)
+- `npm run docker:services` - Start Docker services (PostgreSQL, Redis, etc.)
 - `npm run docker:down` - Stop Docker services
+- `npm run setup` - Install dependencies and copy environment file
+- `npm start` - Full setup: start Docker services and development servers
 
 ## 🗄️ Database Schema
 
@@ -249,12 +258,55 @@ Set production environment variables for:
 
 This project is licensed under the MIT License - see the LICENSE file for details.
 
+## 🔧 Troubleshooting
+
+### Common Issues
+
+**Docker services not starting:**
+```bash
+# Check if ports are available
+netstat -an | grep :5432  # PostgreSQL
+netstat -an | grep :6379  # Redis
+
+# Stop and restart services
+npm run docker:down
+npm run docker:services
+```
+
+**Database connection errors:**
+```bash
+# Check if PostgreSQL is running
+docker ps | grep postgres
+
+# Check database logs
+docker logs ideaforge-postgres
+```
+
+**Frontend not connecting to API:**
+- Ensure API Gateway is running on port 3000
+- Check REACT_APP_API_URL in your .env file
+- Verify CORS settings in the API Gateway
+
+**Environment variables not loading:**
+- Ensure .env file exists in the root directory
+- Restart development servers after changing .env
+- Check that all required variables are set
+
+### Development Tips
+
+- Use `docker logs <container-name>` to check service logs
+- Run `npm run lint` before committing changes
+- Use `npm run test` to run the test suite
+- Check the browser console for frontend errors
+- Use the API health check: `http://localhost:3000/health`
+
 ## 🆘 Support
 
 For support and questions:
 - Open an issue on GitHub
-- Check the documentation in `/docs`
+- Check the troubleshooting section above
 - Review the API endpoints at `http://localhost:3000/api`
+- Join our community discussions
 
 ---
 
