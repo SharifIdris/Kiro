@@ -57,7 +57,16 @@ app.get('/health', (req, res) => {
   });
 });
 
-// API routes will be added here
+// Import routes
+import authRoutes from './routes/auth';
+import ideaRoutes from './routes/ideas';
+import voteRoutes from './routes/votes';
+
+// API routes
+app.use('/api/auth', authRoutes);
+app.use('/api/ideas', ideaRoutes);
+app.use('/api/votes', voteRoutes);
+
 app.get('/api', (req, res) => {
   res.json({
     message: 'IdeaForge API Gateway',
@@ -92,6 +101,28 @@ io.on('connection', (socket) => {
   socket.on('leave_room', (room: string) => {
     socket.leave(room);
     logger.info(`Client ${socket.id} left room: ${room}`);
+  });
+
+  // Join idea-specific room for voting updates
+  socket.on('join_idea', (ideaId: string) => {
+    socket.join(`idea:${ideaId}`);
+    logger.info(`Client ${socket.id} joined idea room: ${ideaId}`);
+  });
+
+  socket.on('leave_idea', (ideaId: string) => {
+    socket.leave(`idea:${ideaId}`);
+    logger.info(`Client ${socket.id} left idea room: ${ideaId}`);
+  });
+
+  // Join general voting updates room
+  socket.on('join_voting_updates', () => {
+    socket.join('voting_updates');
+    logger.info(`Client ${socket.id} joined voting updates room`);
+  });
+
+  socket.on('leave_voting_updates', () => {
+    socket.leave('voting_updates');
+    logger.info(`Client ${socket.id} left voting updates room`);
   });
 });
 
